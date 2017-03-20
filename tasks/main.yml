@@ -1,0 +1,72 @@
+---
+- include: check_system.yml
+- include: check_variables.yml
+
+- name: Add repository key
+  apt_key:
+    keyserver: hkp://keyserver.ubuntu.com:80
+    id: E56151BF
+
+- name: Add repository list
+  apt_repository: "{{ item }}"
+  with_items:
+    - { repo: 'deb http://repos.mesosphere.com/ubuntu {{ ansible_distribution_release }} main', filename: mesosphere }
+    - { repo: 'ppa:webupd8team/java' }
+
+- name: Set acceptance value before installing oracle java8
+  debconf:
+    name: oracle-java8-installer
+    question: shared/accepted-oracle-license-v1-1
+    value: true
+    vtype: boolean
+
+- name: Include variables depends on distribution release
+  include_vars: "vars_{{ ansible_distribution_release }}.yml"
+  when: mesos_version is undefined or marathon_version is undefined
+
+- name: Install java8, mesos and marathon
+  apt: name={{ item }}
+  with_items:
+    - oracle-java8-installer
+    - oracle-java8-set-default
+    - mesos='{{ mesos_version }}'
+    - marathon='{{ marathon_version }}'
+
+- name: Configure zookeeper servers
+  blockinfile:
+    name: /etc/zookeeper/conf/zoo.cfg
+    block: |
+      {% for master in mesos_masters %}
+      server.{{ master.server_id }}={{ master.host }}:{{ master.election_port1 }}:{{ master.election_port2 }}
+      {% endfor %}
+    insertafter: "#server.3=zookeeper3:2888:3888"
+
+- name: Configure zookeeper connection of mesos masters
+  template:
+    src: zk.j2
+    dest: /etc/mesos/zk
+
+- name: Create marathon configuration directory
+  file:
+    name: /etc/marathon/conf
+    state: directory
+
+- name: Configure some files for service
+  shell: "{{ item }}"
+  with_items:
+    - 'echo "{{ zookeeper_id }}" > /etc/zookeeper/conf/myid'
+    - 'echo "{{ quorum }}" > /etc/mesos-master/quorum'
+    - 'echo "{{ ansible_host }}" > /etc/marathon/conf/hostname'
+    - 'echo "{{ ansible_host }}" > /etc/mesos-master/hostname'
+    - 'echo manual > /etc/init/mesos-slave.override'
+
+- name: Configure hostname in /etc/hosts
+  shell: |
+    cat /etc/hosts | grep "{{ ansible_host }}"
+    if [ $? -ne 0 ]; then echo "{{ ansible_host }} $(hostname)" >> /etc/hosts; fi
+
+- name: Configure marathon java options
+  shell: 'echo JAVA_OPTS=\"{{ java_opts | join(" ") }}\" > /etc/default/marathon'
+  when: java_opts is defined
+
+- include: service_mgmt_{{ ansible_distribution_release }}.yml

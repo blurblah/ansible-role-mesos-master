@@ -1,0 +1,22 @@
+---
+- name: check mesos_masters
+  fail:
+    msg: Undefined variable mesos_masters
+  when: mesos_masters is undefined
+
+- name: set zookeeper_id
+  set_fact:
+    zookeeper_id: "{{ item.server_id }}"
+  when: ansible_host == item.host
+  with_items: "{{ mesos_masters }}"
+
+- name: check zookeeper_id
+  fail:
+    msg: Undefined variable zookeeper_id
+  when: zookeeper_id is undefined
+
+- name: check quorum
+  fail:
+    msg: Undefined variable quorum
+  when: quorum is undefined
+  

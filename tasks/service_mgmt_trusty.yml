@@ -1,0 +1,8 @@
+---
+- name: Assure mesos and marathon services started or stopped on Ubuntu 14.04
+  service: "{{ item }}"
+  with_items:
+    - { name: zookeeper, state: restarted, enabled: yes }
+    - { name: mesos-slave, state: stopped }
+    - { name: mesos-master, state: restarted, enabled: yes }
+    - { name: marathon, state: restarted, enabled: yes }
