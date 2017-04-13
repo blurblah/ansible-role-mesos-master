@@ -57,8 +57,13 @@
     - 'echo "{{ zookeeper_id }}" > /etc/zookeeper/conf/myid'
     - 'echo "{{ quorum }}" > /etc/mesos-master/quorum'
     - 'echo "{{ ansible_host }}" > /etc/marathon/conf/hostname'
+    - 'echo http_callback > /etc/marathon/conf/event_subscriber'
     - 'echo "{{ ansible_host }}" > /etc/mesos-master/hostname'
     - 'echo manual > /etc/init/mesos-slave.override'
+
+- name: Configure basic auth for Marathon service
+  shell: echo "{{ basic_auth.id }}:{{ basic_auth.pass }}" > /etc/marathon/conf/http_credentials
+  when: basic_auth is defined
 
 - name: Configure hostname in /etc/hosts
   shell: |
