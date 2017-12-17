@@ -1,6 +1,6 @@
 ---
-- include: check_system.yml
-- include: check_variables.yml
+- import_tasks: check_system.yml
+- import_tasks: check_variables.yml
 
 - name: Add repository key
   apt_key:
@@ -8,10 +8,12 @@
     id: E56151BF
 
 - name: Add repository list
-  apt_repository: "{{ item }}"
+  apt_repository:
+    repo: "{{ item.repo }}"
+    filename: "{{ item.filename }}"
   with_items:
     - { repo: 'deb http://repos.mesosphere.com/ubuntu {{ ansible_distribution_release }} main', filename: mesosphere }
-    - { repo: 'ppa:webupd8team/java' }
+    - { repo: 'ppa:webupd8team/java', filename: java8 }
 
 - name: Set acceptance value before installing oracle java8
   debconf:
@@ -74,4 +76,4 @@
   shell: 'echo JAVA_OPTS=\"{{ java_opts | join(" ") }}\" > /etc/default/marathon'
   when: java_opts is defined
 
-- include: service_mgmt_{{ ansible_distribution_release }}.yml
+- include_tasks: service_mgmt_{{ ansible_distribution_release }}.yml
